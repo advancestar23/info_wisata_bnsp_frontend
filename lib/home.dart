@@ -38,9 +38,7 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (shouldLogout == true) {
-      // Reset username atau clear session jika ada
       ApiServices.username = '';
-      // Kembali ke halaman login
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
@@ -51,7 +49,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final name = ApiServices.username;
     return MainLayout(
-      title: 'home',
+      title: 'Home',
       actions: [
         IconButton(
           icon: const Icon(Icons.logout),
@@ -63,20 +61,78 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            "Selamat datang $name di aplikasi Informasi Wisata",
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            "Selamat datang $name",
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pushNamed(context, '/pilih-kota');
-            },
-            icon: const Icon(Icons.location_city),
-            label: const Text('Pilih Kota Wisata'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              textStyle: const TextStyle(fontSize: 16),
+          const SizedBox(height: 8),
+          const Text(
+            "di aplikasi Informasi Wisata",
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 40),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/pilih-kota'),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.1),
+                    spreadRadius: 2,
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.location_city,
+                      size: 32,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Pilih Kota Wisata',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Temukan wisata menarik di kota pilihan Anda',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  ),
+                ],
+              ),
             ),
           ),
         ],

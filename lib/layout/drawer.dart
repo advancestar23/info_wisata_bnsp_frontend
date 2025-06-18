@@ -8,97 +8,105 @@ class DrawerMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isOnlineAsync = ref.watch(isOnlineProvider);
+    final isOnline = ref.watch(connectivityStatusProvider);
+    print('Current connection status in drawer: $isOnline'); // Debug log
 
     return Drawer(
-      child: Column(
-        children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blue),
-            child: Text(
-              "Menu utama",
-              style: TextStyle(color: Colors.white, fontSize: 20),
-            ),
-          ),
-          isOnlineAsync.when(
-            data: (isOnline) => Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              color: isOnline ? Colors.green.shade100 : Colors.red.shade100,
-              child: Row(
-                children: [
-                  Icon(
-                    isOnline ? Icons.wifi : Icons.wifi_off,
-                    size: 20,
-                    color: isOnline ? Colors.green : Colors.red,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isOnline ? 'Online' : 'Offline',
-                    style: TextStyle(
-                      color: isOnline ? Colors.green.shade700 : Colors.red.shade700,
-                      fontWeight: FontWeight.bold,
+      backgroundColor: Colors.white,
+      child: SafeArea(
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                ),
+                child: const Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white,
+                      child: Icon(
+                        Icons.person,
+                        size: 40,
+                        color: Colors.blue,
+                      ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 12),
+                    Text(
+                      "Menu utama",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            error: (_, __) => Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              color: Colors.orange.shade100,
-              child: const Row(
-                children: [
-                  Icon(Icons.warning, size: 20, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Text(
-                    'Status koneksi tidak diketahui',
-                    style: TextStyle(color: Colors.orange),
-                  ),
-                ],
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                color: isOnline ? Colors.green.shade100 : Colors.red.shade100,
+                child: Row(
+                  children: [
+                    Icon(
+                      isOnline ? Icons.wifi : Icons.wifi_off,
+                      size: 20,
+                      color: isOnline ? Colors.green.shade700 : Colors.red.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isOnline ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        color: isOnline ? Colors.green.shade700 : Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            loading: () => Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              child: const Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+              Expanded(
+                child: Container(
+                  color: Colors.white,
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.home),
+                        title: const Text("Home"),
+                        onTap: () => Navigator.pushReplacementNamed(context, '/home'),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.location_city),
+                        title: const Text("Pilih Kota"),
+                        onTap: () => Navigator.pushReplacementNamed(context, '/pilih-kota'),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.place),
+                        title: const Text("Daftar Wisata"),
+                        onTap: () => Navigator.pushReplacementNamed(context, '/wisata'),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.favorite),
+                        title: const Text("Wisata Favorit"),
+                        onTap: () => Navigator.pushReplacementNamed(context, '/favorit'),
+                      ),
+                      const Divider(height: 1),
+                    ],
                   ),
-                  SizedBox(width: 8),
-                  Text('Memeriksa koneksi...'),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-          Expanded(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.home),
-                  title: const Text("Home"),
-                  onTap: () => Navigator.pushReplacementNamed(context, '/home'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.location_city),
-                  title: const Text("Pilih Kota"),
-                  onTap: () => Navigator.pushReplacementNamed(context, '/pilih-kota'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.place),
-                  title: const Text("Daftar Wisata"),
-                  onTap: () => Navigator.pushReplacementNamed(context, '/wisata'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.favorite),
-                  title: const Text("Wisata Favorit"),
-                  onTap: () => Navigator.pushReplacementNamed(context, '/favorit'),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

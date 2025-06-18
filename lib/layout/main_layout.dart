@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import './drawer.dart';
+import '../widgets/connectivity_status.dart';
 
 class MainLayout extends StatelessWidget {
   final String title;
@@ -27,11 +28,18 @@ class MainLayout extends StatelessWidget {
         leading: leading,
       ),
       drawer: showDrawer ? const DrawerMenu() : null,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: child,
-        ),
+      body: Column(
+        children: [
+          const ConnectivityStatus(),
+          Expanded(
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: child,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

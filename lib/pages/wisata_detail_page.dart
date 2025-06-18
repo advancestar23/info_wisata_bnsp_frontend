@@ -16,6 +16,25 @@ class _WisataDetailPageState extends State<WisataDetailPage> {
   bool _isFavorite = false;
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _checkFavoriteStatus();
+  }
+
+  Future<void> _checkFavoriteStatus() async {
+    try {
+      final isFavorite = await ApiServices.checkIsFavorite(widget.wisata.id);
+      if (mounted) {
+        setState(() {
+          _isFavorite = isFavorite;
+        });
+      }
+    } catch (e) {
+      print('Error checking favorite status: $e');
+    }
+  }
+
   String _formatHarga(String harga) {
     // Menghilangkan semua karakter non-angka
     String numericString = harga.replaceAll(RegExp(r'[^0-9]'), '');
@@ -25,31 +44,46 @@ class _WisataDetailPageState extends State<WisataDetailPage> {
   }
 
   Future<void> _toggleFavorite() async {
+    if (_isLoading) return;
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      bool success;
       if (_isFavorite) {
-        success = await ApiServices.removeFromFavorite(widget.wisata.id);
+        await ApiServices.removeFromFavorite(widget.wisata.id);
       } else {
-        success = await ApiServices.addToFavorite(widget.wisata.id);
+        await ApiServices.addToFavorite(widget.wisata.id);
       }
 
-      if (success) {
+      if (mounted) {
         setState(() {
           _isFavorite = !_isFavorite;
         });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isFavorite ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit'),
+            backgroundColor: _isFavorite ? Colors.green : Colors.orange,
+          ),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

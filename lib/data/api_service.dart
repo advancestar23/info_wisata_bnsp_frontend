@@ -10,22 +10,12 @@ class ApiServices {
   static String? username;
 
   static Future<bool> checkConnectivity() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
-  }
-
-  static Future<T> _handleRequest<T>(Future<T> Function() request) async {
-    if (!await checkConnectivity()) {
-      throw Exception('Tidak ada koneksi internet. Silakan cek koneksi Anda dan coba lagi.');
-    }
-
     try {
-      return await request();
+      final connectivityResult = await Connectivity().checkConnectivity();
+      return connectivityResult != ConnectivityResult.none;
     } catch (e) {
-      if (e is http.ClientException) {
-        throw Exception('Gagal terhubung ke server. Silakan cek koneksi Anda dan coba lagi.');
-      }
-      rethrow;
+      print('Error checking connectivity: $e');
+      return true; // Default to true to allow requests to try
     }
   }
 
@@ -33,21 +23,110 @@ class ApiServices {
     String email,
     String password,
   ) async {
-    return _handleRequest(() async {
+    try {
       final response = await http.post(
         Uri.parse('$baseUrl/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"email": email, "password": password}),
       );
+      
+      print('Login Response Status: ${response.statusCode}');
+      print('Login Response Body: ${response.body}');
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         token = data['token'];
         username = data['user']['name'];
         return data;
       } else {
-        throw Exception('failed to login');
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to login');
       }
-    });
+    } catch (e) {
+      print('Login error: $e');
+      throw Exception('Gagal login: ${e.toString()}');
+    }
+  }
+
+  static Future<List<Wisata>> fetchWisata() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/wisata'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('Wisata Response Status: ${response.statusCode}');
+      print('Wisata Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+          final List<dynamic> data = jsonResponse['data'];
+          return data.map((json) => Wisata.fromJson(json)).toList();
+        } else {
+          throw Exception(jsonResponse['message'] ?? 'Failed to load wisata');
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesi telah berakhir. Silakan login kembali.');
+      } else {
+        throw Exception('Gagal memuat daftar wisata');
+      }
+    } catch (e) {
+      print('Error fetching wisata: $e');
+      throw Exception('Gagal memuat daftar wisata: ${e.toString()}');
+    }
+  }
+
+  static Future<List<WisataFavorit>> getFavorites() async {
+    try {
+      if (token == null) {
+        throw Exception('Silakan login terlebih dahulu');
+      }
+
+      print('Getting favorites with token: $token');
+      final response = await http.get(
+        Uri.parse('$baseUrl/wisatafavorit'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('Favorites Response Status: ${response.statusCode}');
+      print('Favorites Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+          final List<dynamic> data = jsonResponse['data'];
+          return data.map((item) => WisataFavorit.fromJson(item)).toList();
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesi telah berakhir. Silakan login kembali.');
+      }
+      return [];
+    } catch (e) {
+      print('Error in getFavorites: $e');
+      throw Exception('Gagal memuat daftar favorit: ${e.toString()}');
+    }
+  }
+
+  static Future<List<String>> getAvailableCities() async {
+    try {
+      final wisataList = await fetchWisata();
+      final Set<String> cities = wisataList
+          .map((wisata) => wisata.kota)
+          .where((kota) => kota.isNotEmpty)
+          .toSet();
+      final sortedCities = cities.toList()..sort();
+      return sortedCities;
+    } catch (e) {
+      print('Error getting cities: $e');
+      throw Exception('Gagal memuat daftar kota: ${e.toString()}');
+    }
   }
 
   static Future<Map<String, dynamic>> register({
@@ -55,167 +134,82 @@ class ApiServices {
     required String email,
     required String password,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        "name": name,
-        "email": email,
-        "password": password,
-      }),
-    );
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = jsonDecode(response.body);
-      return data;
-    } else {
-      throw Exception('failed to register');
-    }
-  }
-
-  static Future<List<Wisata>> fetchWisata() async {
-    return _handleRequest(() async {
-      try {
-        final response = await http.get(
-          Uri.parse('$baseUrl/wisata'),
-          headers: {
-            'Content-Type': 'application/json',
-            if (token != null) 'Authorization': 'Bearer $token',
-          },
-        );
-
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> jsonResponse = json.decode(response.body);
-          if (jsonResponse['success'] == true) {
-            final List<dynamic> data = jsonResponse['data'];
-            return data.map((json) => Wisata.fromJson(json)).toList();
-          } else {
-            throw Exception(jsonResponse['message']);
-          }
-        } else {
-          throw Exception('Failed to load wisata');
-        }
-      } catch (e) {
-        throw Exception('Error: $e');
-      }
-    });
-  }
-
-  static Future<List<WisataFavorit>> getFavorites() async {
-    return _handleRequest(() async {
-      try {
-        if (token == null) {
-          throw Exception('User not logged in');
-        }
-
-        print('Getting favorites with token: $token');
-        final response = await http.get(
-          Uri.parse('$baseUrl/wisatafavorit'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
-
-        print('Favorites Response Status: ${response.statusCode}');
-        print('Favorites Response Body: ${response.body}');
-
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> jsonResponse = json.decode(response.body);
-          if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
-            final List<dynamic> data = jsonResponse['data'];
-            return data.map((item) {
-              try {
-                return WisataFavorit.fromJson(item);
-              } catch (e) {
-                print('Error parsing favorite item: $e');
-                print('Problematic item: $item');
-                return null;
-              }
-            }).whereType<WisataFavorit>().toList();
-          }
-        } else if (response.statusCode == 401) {
-          throw Exception('Unauthorized. Please login again.');
-        }
-        return [];
-      } catch (e) {
-        print('Error in getFavorites: $e');
-        throw Exception('Error loading favorites: $e');
-      }
-    });
-  }
-
-  static Future<Wisata?> getWisataById(int id) async {
     try {
-      print('Getting wisata detail for ID: $id');
-      final response = await http.get(
-        Uri.parse('$baseUrl/tourist/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await http.post(
+        Uri.parse('$baseUrl/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "name": name,
+          "email": email,
+          "password": password,
+        }),
       );
-
-      print('Wisata Detail Response Status: ${response.statusCode}');
-      print('Wisata Detail Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = json.decode(response.body);
-        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
-          if (jsonResponse['data'] is List && jsonResponse['data'].isNotEmpty) {
-            return Wisata.fromJson(jsonResponse['data'][0]);
-          } else if (jsonResponse['data'] is Map) {
-            return Wisata.fromJson(jsonResponse['data']);
-          }
-        }
+      
+      print('Register Response Status: ${response.statusCode}');
+      print('Register Response Body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Gagal mendaftar');
       }
-      return null;
     } catch (e) {
-      print('Error getting wisata detail: $e');
-      return null;
+      print('Register error: $e');
+      throw Exception('Gagal mendaftar: ${e.toString()}');
     }
   }
 
-  static Future<bool> addToFavorite(int idWisata) async {
+  static Future<bool> addToFavorite(int wisataId) async {
     try {
       if (token == null) {
-        throw Exception('User not logged in');
+        throw Exception('Silakan login terlebih dahulu');
       }
 
-      print('Adding to favorites: $idWisata');
+      print('Adding to favorites: $wisataId');
       final response = await http.post(
-        Uri.parse('$baseUrl/favorite'),
+        Uri.parse('$baseUrl/wisatafavorit'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'id_wisata': idWisata.toString(),
+          'id_wisata': wisataId,
         }),
       );
 
       print('Add favorite Response Status: ${response.statusCode}');
       print('Add favorite Response Body: ${response.body}');
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final Map<String, dynamic> jsonResponse = json.decode(response.body);
-        return jsonResponse['success'] == true;
+        if (jsonResponse['success'] == true) {
+          return true;
+        } else {
+          throw Exception(jsonResponse['message'] ?? 'Gagal menambahkan ke favorit');
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesi telah berakhir. Silakan login kembali.');
+      } else {
+        final error = json.decode(response.body);
+        throw Exception(error['message'] ?? 'Gagal menambahkan ke favorit');
       }
-      return false;
     } catch (e) {
       print('Error adding to favorites: $e');
-      return false;
+      throw Exception('Gagal menambahkan ke favorit: ${e.toString()}');
     }
   }
 
-  static Future<bool> removeFromFavorite(int idWisata) async {
+  static Future<bool> removeFromFavorite(int wisataId) async {
     try {
       if (token == null) {
-        throw Exception('User not logged in');
+        throw Exception('Silakan login terlebih dahulu');
       }
 
-      print('Removing from favorites: $idWisata');
+      print('Removing from favorites: $wisataId');
       final response = await http.delete(
-        Uri.parse('$baseUrl/favorite/$idWisata'),
+        Uri.parse('$baseUrl/favorite/$wisataId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -236,15 +230,15 @@ class ApiServices {
     }
   }
 
-  static Future<bool> deleteFavorite(int id) async {
+  static Future<bool> deleteFavorite(int favoriteId) async {
     try {
       if (token == null) {
-        throw Exception('User not logged in');
+        throw Exception('Silakan login terlebih dahulu');
       }
 
-      print('Deleting favorite with id: $id');
+      print('Deleting favorite: $favoriteId');
       final response = await http.delete(
-        Uri.parse('$baseUrl/wisatafavorit/$id'),
+        Uri.parse('$baseUrl/wisatafavorit/$favoriteId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -265,37 +259,33 @@ class ApiServices {
     }
   }
 
-  static Future<List<Wisata>> getFavoriteWisataList() async {
+  static Future<bool> checkIsFavorite(int wisataId) async {
     try {
-      final favorites = await getFavorites();
-      print('Got ${favorites.length} favorites');
-
-      List<Wisata> wisataList = [];
-      for (var favorite in favorites) {
-        print('Getting details for wisata ID: ${favorite.idWisata}');
-        final wisata = await getWisataById(favorite.idWisata);
-        if (wisata != null) {
-          wisataList.add(wisata);
-        }
+      if (token == null) {
+        return false;
       }
 
-      print('Returning ${wisataList.length} wisata details');
-      return wisataList;
-    } catch (e) {
-      print('Error in getFavoriteWisataList: $e');
-      throw Exception('Failed to load favorite wisata list: $e');
-    }
-  }
+      final response = await http.get(
+        Uri.parse('$baseUrl/wisatafavorit/check/$wisataId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-  static Future<List<String>> getAvailableCities() async {
-    return _handleRequest(() async {
-      final wisataList = await fetchWisata();
-      final Set<String> cities = wisataList
-          .map((wisata) => wisata.kota)
-          .where((kota) => kota.isNotEmpty)
-          .toSet();
-      final sortedCities = cities.toList()..sort();
-      return sortedCities;
-    });
+      print('Check favorite Response Status: ${response.statusCode}');
+      print('Check favorite Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        return jsonResponse['is_favorite'] == true;
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesi telah berakhir. Silakan login kembali.');
+      }
+      return false;
+    } catch (e) {
+      print('Error checking favorite status: $e');
+      return false;
+    }
   }
 }
